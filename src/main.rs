@@ -1,23 +1,36 @@
 use anyhow::Result;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
+use config::Config;
+use std::{
+    fs,
+    net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
+    str::FromStr,
+};
 pub mod bp;
+pub mod config;
 pub mod fp;
 pub mod tls;
 pub mod tunnel;
 
 #[tokio::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<()> {
     rustls::crypto::ring::default_provider()
         .install_default()
         .expect("Failed to install rustls crypto provider");
 
-    let key_path = String::from("quic.key");
-    let cert_path = String::from("quic.crt");
-    let server_name = String::from("local.com");
-    let laddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9999);
-    let raddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 9080);
+    let data = fs::read_to_string("config.toml")?;
+    let cfg: Config = toml::from_str(&data)?;
+    eprintln!("read config:\n {:#?}", cfg);
+    let raddr = SocketAddr::from_str(&cfg.backend.proxy_pass)?;
+    let laddr = SocketAddr::from_str(&cfg.frontend.listen)?;
+
     let x1 = tokio::spawn(async move {
-        if let Err(err) = start_server(raddr, key_path, cert_path).await {
+        if let Err(err) = start_server(
+            raddr,
+            cfg.backend.ssl_certificate_key,
+            cfg.backend.ssl_certificate,
+        )
+        .await
+        {
             println!("server listen end with err: {}, exit...", err)
         } else {
             println!("server listen end, exit...")
@@ -25,7 +38,7 @@ async fn main() -> std::io::Result<()> {
     });
     let x2 = tokio::spawn(async move {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        if let Err(err) = start_client(laddr, server_name).await {
+        if let Err(err) = start_client(laddr, cfg.frontend.server_name).await {
             println!("client listen end with err: {}, exit...", err)
         } else {
             println!("client listen end, exit...")
