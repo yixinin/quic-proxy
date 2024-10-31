@@ -18,8 +18,8 @@ pub struct TCPServer {
 impl TCPServer {
     pub fn new(laddr: SocketAddr, server_name: String, socket: UdpSocket) -> Result<Self> {
         let raddr = socket.peer_addr()?;
-        let mut roots = rustls::RootCertStore::empty();
-        let mut client_crypto = rustls::ClientConfig::builder()
+        let roots = rustls::RootCertStore::empty();
+        let client_crypto = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();
         let client_config =
