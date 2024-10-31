@@ -31,8 +31,15 @@ async fn main() -> std::io::Result<()> {
             println!("client listen end, exit...")
         }
     });
-
-    tokio::join!(x1, x2);
+    tokio::select! {
+        _=x1 =>{
+            eprintln!("x1 done, exit.");
+        },
+        _=x2 =>{
+            eprintln!("x2 done, exit.");
+        }
+    };
+    eprintln!("all done, exit.");
     Ok(())
 }
 

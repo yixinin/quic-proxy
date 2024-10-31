@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 
+use quinn::VarInt;
 use quinn_proto::crypto::rustls::QuicClientConfig;
 use tokio::io::AsyncWriteExt;
 
@@ -70,8 +71,19 @@ impl TCPServer {
                 let (mut srx, mut stx) = stream.split();
                 let x1 = tokio::io::copy(&mut rx, &mut stx);
                 let x2 = tokio::io::copy(&mut srx, &mut tx);
-                tokio::join!(x1, x2);
-                stream.shutdown().await;
+                tokio::select! {
+                    _= x1=>{
+                        eprintln!("bp copy x1 end")
+                    },
+                    _= x2=>{
+                        eprintln!("bp copy x2 end")
+                    },
+                };
+
+                let _ = stream.shutdown().await;
+                let _ = tx.flush().await;
+                let _ = tx.finish();
+                let _ = rx.stop(VarInt::from_u32(0));
             });
         }
     }

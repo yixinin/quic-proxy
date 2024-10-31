@@ -1,4 +1,5 @@
 use anyhow::Result;
+use quinn::VarInt;
 use quinn_proto::crypto::rustls::QuicServerConfig;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use std::{
@@ -70,9 +71,19 @@ impl TCPClient {
                                 eprintln!("bp tcp connected to {}, start copy", addr.clone());
                                 let x1 = tokio::io::copy(&mut rrx, &mut tx);
                                 let x2 = tokio::io::copy(&mut rx, &mut rtx);
+                                tokio::select! {
+                                    _= x1=>{
+                                        eprintln!("bp copy x1 end")
+                                    },
+                                    _= x2=>{
+                                        eprintln!("bp copy x2 end")
+                                    },
+                                };
 
-                                tokio::join!(x1, x2);
                                 let _ = stream.shutdown().await;
+                                let _ = tx.flush().await;
+                                let _ = tx.finish();
+                                let _ = rx.stop(VarInt::from_u32(0));
                             }
                         }
                     }
