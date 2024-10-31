@@ -68,7 +68,7 @@ impl TCPClient {
                                     );
 
                                     match TcpStream::connect(addr.clone()).await {
-                                        Ok((mut stream)) => {
+                                        Ok(mut stream) => {
                                             let (mut rrx, mut rtx) = stream.split();
 
                                             eprintln!(
@@ -86,9 +86,10 @@ impl TCPClient {
                                                 },
                                             };
 
-                                            let _ = stream.shutdown().await;
+                                            let _ = rtx.flush().await;
                                             let _ = tx.flush().await;
                                             let _ = tx.finish();
+                                            let _ = stream.shutdown().await;
                                         }
                                         Err(e) => {
                                             eprintln!(

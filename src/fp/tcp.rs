@@ -81,9 +81,10 @@ impl TCPServer {
                                     },
                                 };
 
-                                let _ = stream.shutdown().await;
+                                let _ = stx.flush().await;
                                 let _ = tx.flush().await;
                                 let _ = tx.finish();
+                                let _ = stream.shutdown().await;
                             });
                         }
                         Err(e) => {
