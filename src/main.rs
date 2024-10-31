@@ -2,7 +2,9 @@ use anyhow::Result;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 pub mod bp;
 pub mod fp;
+pub mod tls;
 pub mod tunnel;
+
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     rustls::crypto::ring::default_provider()

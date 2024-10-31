@@ -8,6 +8,8 @@ use anyhow::Result;
 
 use quinn_proto::crypto::rustls::QuicClientConfig;
 use tokio::io::AsyncWriteExt;
+
+use crate::tls;
 pub struct TCPServer {
     laddr: SocketAddr,
     raddr: SocketAddr,
@@ -18,12 +20,14 @@ pub struct TCPServer {
 impl TCPServer {
     pub fn new(laddr: SocketAddr, server_name: String, socket: UdpSocket) -> Result<Self> {
         let raddr = socket.peer_addr()?;
-        let roots = rustls::RootCertStore::empty();
         let client_crypto = rustls::ClientConfig::builder()
-            .with_root_certificates(roots)
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(tls::DebugVerify {}))
             .with_no_client_auth();
-        let client_config =
-            quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(client_crypto)?));
+
+        let qccfg = QuicClientConfig::try_from(client_crypto)?;
+
+        let client_config = quinn::ClientConfig::new(Arc::new(qccfg));
 
         let runtime = quinn::default_runtime()
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no async runtime found"))?;

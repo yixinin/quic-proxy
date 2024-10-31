@@ -30,7 +30,6 @@ impl TCPClient {
         let server_crypto = rustls::ServerConfig::builder()
             .with_no_client_auth()
             .with_single_cert(certs, key)?;
-
         let mut server_config =
             quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(server_crypto)?));
         let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
