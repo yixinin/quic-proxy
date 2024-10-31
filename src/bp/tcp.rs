@@ -58,50 +58,53 @@ impl TCPClient {
                     match incom.await {
                         Ok(conn) => {
                             eprintln!("bp quic incoming new conn: {}", conn.remote_address());
+                            loop {
+                                match conn.accept_bi().await {
+                                    Ok((mut tx, mut rx)) => {
+                                        eprintln!(
+                                            "bp quic incoming new stream: {}, tcp try connecting to {}",
+                                            conn.remote_address(),
+                                            addr.clone()
+                                        );
 
-                            match conn.accept_bi().await {
-                                Ok((mut tx, mut rx)) => {
-                                    eprintln!(
-                                        "bp quic incoming new stream: {}, tcp try connecting to {}",
-                                        conn.remote_address(),
-                                        addr.clone()
-                                    );
+                                        tokio::spawn(async move {
+                                            match TcpStream::connect(addr.clone()).await {
+                                                Ok(mut stream) => {
+                                                    let (mut rrx, mut rtx) = stream.split();
 
-                                    match TcpStream::connect(addr.clone()).await {
-                                        Ok(mut stream) => {
-                                            let (mut rrx, mut rtx) = stream.split();
+                                                    eprintln!(
+                                                        "bp tcp connected to {}, start copy",
+                                                        addr.clone()
+                                                    );
+                                                    let x1 = tokio::io::copy(&mut rrx, &mut tx);
+                                                    let x2 = tokio::io::copy(&mut rx, &mut rtx);
+                                                    tokio::select! {
+                                                        _= x1=>{
+                                                            eprintln!("bp copy x1 end")
+                                                        },
+                                                        _= x2=>{
+                                                            eprintln!("bp copy x2 end")
+                                                        },
+                                                    };
 
-                                            eprintln!(
-                                                "bp tcp connected to {}, start copy",
-                                                addr.clone()
-                                            );
-                                            let x1 = tokio::io::copy(&mut rrx, &mut tx);
-                                            let x2 = tokio::io::copy(&mut rx, &mut rtx);
-                                            tokio::select! {
-                                                _= x1=>{
-                                                    eprintln!("bp copy x1 end")
-                                                },
-                                                _= x2=>{
-                                                    eprintln!("bp copy x2 end")
-                                                },
-                                            };
-
-                                            let _ = rtx.flush().await;
-                                            let _ = tx.flush().await;
-                                            let _ = tx.finish();
-                                            let _ = stream.shutdown().await;
-                                        }
-                                        Err(e) => {
-                                            eprintln!(
-                                                "bp tcp connecting to {} error: {}",
-                                                addr.clone(),
-                                                e,
-                                            )
-                                        }
+                                                    let _ = rtx.flush().await;
+                                                    let _ = tx.flush().await;
+                                                    let _ = tx.finish();
+                                                    let _ = stream.shutdown().await;
+                                                }
+                                                Err(e) => {
+                                                    eprintln!(
+                                                        "bp tcp connecting to {} error: {}",
+                                                        addr.clone(),
+                                                        e,
+                                                    )
+                                                }
+                                            }
+                                        });
                                     }
-                                }
-                                Err(e) => {
-                                    eprintln!("bp accept bi error: {}", e);
+                                    Err(e) => {
+                                        eprintln!("bp accept bi error: {}", e);
+                                    }
                                 }
                             }
                         }
