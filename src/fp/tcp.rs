@@ -72,18 +72,16 @@ impl TCPServer {
                                 let (mut srx, mut stx) = stream.split();
                                 let x1 = tokio::io::copy(&mut rx, &mut stx);
                                 let x2 = tokio::io::copy(&mut srx, &mut tx);
-                                tokio::select! {
-                                    _= x1=>{
-                                        eprintln!("bp copy x1 end")
-                                    },
-                                    _= x2=>{
-                                        eprintln!("bp copy x2 end")
-                                    },
-                                };
+                                // tokio::select! {
+                                //     _= x1=>{
+                                //         eprintln!("bp copy x1 end")
+                                //     },
+                                //     _= x2=>{
+                                //         eprintln!("bp copy x2 end")
+                                //     },
+                                // };
 
-                                let _ = stx.flush().await;
-                                let _ = tx.flush().await;
-                                let _ = tx.finish();
+                                let _ = tokio::join!(x1, x2);
                                 let _ = stream.shutdown().await;
                             });
                         }
