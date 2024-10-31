@@ -6,7 +6,6 @@ use std::{
 
 use anyhow::Result;
 
-use quinn::VarInt;
 use quinn_proto::crypto::rustls::QuicClientConfig;
 use tokio::io::AsyncWriteExt;
 

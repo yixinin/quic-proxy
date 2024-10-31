@@ -2,14 +2,13 @@ use anyhow::Result;
 use config::Config;
 use std::{
     fs,
-    net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
+    net::{SocketAddr, UdpSocket},
     str::FromStr,
 };
 pub mod bp;
 pub mod config;
 pub mod fp;
 pub mod tls;
-pub mod tunnel;
 
 #[tokio::main]
 async fn main() -> Result<()> {
