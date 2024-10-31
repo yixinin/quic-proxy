@@ -55,32 +55,57 @@ impl TCPClient {
             if let Some(incom) = self.lis.accept().await {
                 eprintln!("bp quic incoming new conn");
                 tokio::spawn(async move {
-                    if let Ok(conn) = incom.await {
-                        eprintln!("bp quic incoming new conn: {}", conn.remote_address());
+                    match incom.await {
+                        Ok(conn) => {
+                            eprintln!("bp quic incoming new conn: {}", conn.remote_address());
 
-                        if let Ok((mut tx, mut rx)) = conn.accept_bi().await {
-                            eprintln!("bp quic incoming new stream: {}", conn.remote_address());
+                            match conn.accept_bi().await {
+                                Ok((mut tx, mut rx)) => {
+                                    eprintln!(
+                                        "bp quic incoming new stream: {}, tcp try connecting to {}",
+                                        conn.remote_address(),
+                                        addr.clone()
+                                    );
 
-                            eprintln!("bp tcp try connecting to {}", addr.clone());
-                            if let Ok(mut stream) = TcpStream::connect(addr.clone()).await {
-                                let (mut rrx, mut rtx) = stream.split();
+                                    match TcpStream::connect(addr.clone()).await {
+                                        Ok((mut stream)) => {
+                                            let (mut rrx, mut rtx) = stream.split();
 
-                                eprintln!("bp tcp connected to {}, start copy", addr.clone());
-                                let x1 = tokio::io::copy(&mut rrx, &mut tx);
-                                let x2 = tokio::io::copy(&mut rx, &mut rtx);
-                                tokio::select! {
-                                    _= x1=>{
-                                        eprintln!("bp copy x1 end")
-                                    },
-                                    _= x2=>{
-                                        eprintln!("bp copy x2 end")
-                                    },
-                                };
+                                            eprintln!(
+                                                "bp tcp connected to {}, start copy",
+                                                addr.clone()
+                                            );
+                                            let x1 = tokio::io::copy(&mut rrx, &mut tx);
+                                            let x2 = tokio::io::copy(&mut rx, &mut rtx);
+                                            tokio::select! {
+                                                _= x1=>{
+                                                    eprintln!("bp copy x1 end")
+                                                },
+                                                _= x2=>{
+                                                    eprintln!("bp copy x2 end")
+                                                },
+                                            };
 
-                                let _ = stream.shutdown().await;
-                                let _ = tx.flush().await;
-                                let _ = tx.finish();
+                                            let _ = stream.shutdown().await;
+                                            let _ = tx.flush().await;
+                                            let _ = tx.finish();
+                                        }
+                                        Err(e) => {
+                                            eprintln!(
+                                                "bp tcp connecting to {} error: {}",
+                                                addr.clone(),
+                                                e,
+                                            )
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("bp accept bi error: {}", e);
+                                }
                             }
+                        }
+                        Err(e) => {
+                            eprintln!("bp quic incom await error: {}", e);
                         }
                     }
                 });
