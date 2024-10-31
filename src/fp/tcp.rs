@@ -63,27 +63,29 @@ impl TCPServer {
         let lis = tokio::net::TcpListener::bind(self.laddr).await?;
         eprintln!("fp tcp listening on {}", self.laddr);
         loop {
-            let (mut stream, _raddr) = lis.accept().await?;
-            eprintln!("fp tcp accept new stream {}, quic open bi", self.laddr);
-            let (mut tx, mut rx) = conn.open_bi().await?;
-            tokio::task::spawn(async move {
-                eprintln!("fp tcp start copy");
-                let (mut srx, mut stx) = stream.split();
-                let x1 = tokio::io::copy(&mut rx, &mut stx);
-                let x2 = tokio::io::copy(&mut srx, &mut tx);
-                tokio::select! {
-                    _= x1=>{
-                        eprintln!("bp copy x1 end")
-                    },
-                    _= x2=>{
-                        eprintln!("bp copy x2 end")
-                    },
-                };
+            if let Ok((mut stream, _raddr)) = lis.accept().await {
+                eprintln!("fp tcp accept new stream {}, quic open bi", self.laddr);
+                if let Ok((mut tx, mut rx)) = conn.open_bi().await {
+                    tokio::task::spawn(async move {
+                        eprintln!("fp tcp start copy");
+                        let (mut srx, mut stx) = stream.split();
+                        let x1 = tokio::io::copy(&mut rx, &mut stx);
+                        let x2 = tokio::io::copy(&mut srx, &mut tx);
+                        tokio::select! {
+                            _= x1=>{
+                                eprintln!("bp copy x1 end")
+                            },
+                            _= x2=>{
+                                eprintln!("bp copy x2 end")
+                            },
+                        };
 
-                let _ = stream.shutdown().await;
-                let _ = tx.flush().await;
-                let _ = tx.finish();
-            });
+                        let _ = stream.shutdown().await;
+                        let _ = tx.flush().await;
+                        let _ = tx.finish();
+                    });
+                }
+            }
         }
     }
 }
