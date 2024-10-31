@@ -83,7 +83,6 @@ impl TCPClient {
                                 let _ = stream.shutdown().await;
                                 let _ = tx.flush().await;
                                 let _ = tx.finish();
-                                let _ = rx.stop(VarInt::from_u32(0));
                             }
                         }
                     }
